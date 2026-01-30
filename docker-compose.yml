@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  ocr-api:
+    build: .
+    container_name: spanish-ocr
+    ports:
+      - "5000:5000"
+    environment:
+      - MODEL_TYPE=${MODEL_TYPE:-mobile}
+      - TEXT_SCORE_THRESHOLD=${TEXT_SCORE_THRESHOLD:-0.5}
+      - PORT=${PORT:-5000}
+      - MAX_FILE_SIZE_MB=${MAX_FILE_SIZE_MB:-10}
+    restart: unless-stopped
+    volumes:
+      - ./models:/root/.cache/modelscope  # Cache downloaded models
