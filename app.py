@@ -59,8 +59,17 @@ def process_image(image: Image.Image, model_type: str) -> str:
     if not result:
         return ""
     
-    # Extract text from results and join with line breaks
-    texts = [line[1] for line in result]
+    # Extract text from results with error handling
+    texts = []
+    for line in result:
+        try:
+            # RapidOCR returns: [[bbox], text, confidence]
+            if isinstance(line, (list, tuple)) and len(line) >= 2:
+                texts.append(str(line[1]))
+        except (IndexError, TypeError) as e:
+            print(f"Warning: Could not parse line {line}: {e}")
+            continue
+    
     return "\n".join(texts)
 
 
