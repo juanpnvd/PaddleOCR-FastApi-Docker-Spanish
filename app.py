@@ -95,9 +95,12 @@ async def ocr_endpoint(
     
     try:
         # Determine file type
-        file_extension = file.filename.lower().split(".")[-1] if file.filename else ""
+        file_extension = ""
+        if file.filename:
+            file_extension = file.filename.lower().split(".")[-1]
         
-        if file_extension == "pdf":
+        # Detect PDF by magic bytes (more reliable than filename)
+        if contents[:4] == b'%PDF' or file_extension == "pdf":
             # Convert PDF to images
             images = convert_from_bytes(contents)
             
