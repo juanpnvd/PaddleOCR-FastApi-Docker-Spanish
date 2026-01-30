@@ -29,22 +29,14 @@ def get_ocr_engine(model_type: str = "mobile"):
     if model_type not in ocr_engines:
         model_enum = ModelType.SERVER if model_type == "server" else ModelType.MOBILE
         
+        # Use PPOCRv5 with supported language combinations
         ocr_engines[model_type] = RapidOCR(
             params={
-                "Det.engine_type": EngineType.ONNXRUNTIME,
-                "Det.lang_type": LangDet.MULTI,
                 "Det.model_type": model_enum,
                 "Det.ocr_version": OCRVersion.PPOCRV5,
-                
-                "Rec.engine_type": EngineType.ONNXRUNTIME,
                 "Rec.lang_type": LangRec.LATIN,
                 "Rec.model_type": model_enum,
                 "Rec.ocr_version": OCRVersion.PPOCRV5,
-                
-                "text_score": TEXT_SCORE_THRESHOLD,
-                "use_det": True,
-                "use_cls": True,
-                "use_rec": True,
             }
         )
     
@@ -53,24 +45,18 @@ def get_ocr_engine(model_type: str = "mobile"):
 
 def process_image(image: Image.Image, model_type: str) -> str:
     """Process a single image and return extracted text."""
-    engine = get_ocr_engine(model_type)
-    result, _ = engine(image)
-    
-    if not result:
+    try:
+        engine = get_ocr_engine(model_type)
+        ocr_output = engine(image)
+        
+        # RapidOCROutput has a txts attribute containing the text results
+        if hasattr(ocr_output, 'txts') and ocr_output.txts:
+            return "\n".join(ocr_output.txts)
+        
         return ""
-    
-    # Extract text from results with error handling
-    texts = []
-    for line in result:
-        try:
-            # RapidOCR returns: [[bbox], text, confidence]
-            if isinstance(line, (list, tuple)) and len(line) >= 2:
-                texts.append(str(line[1]))
-        except (IndexError, TypeError) as e:
-            print(f"Warning: Could not parse line {line}: {e}")
-            continue
-    
-    return "\n".join(texts)
+    except Exception as e:
+        print(f"ERROR in process_image: {type(e).__name__}: {str(e)}")
+        raise
 
 
 @app.get("/health")
@@ -103,10 +89,12 @@ async def ocr_endpoint(
         )
     
     try:
-        # Determine file type
+        # Determine file type - safely handle filenames without extensions
         file_extension = ""
         if file.filename:
-            file_extension = file.filename.lower().split(".")[-1]
+            parts = file.filename.lower().split(".")
+            if len(parts) > 1:
+                file_extension = parts[-1]
         
         # Detect PDF by magic bytes (more reliable than filename)
         if contents[:4] == b'%PDF' or file_extension == "pdf":
