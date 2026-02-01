@@ -14,3 +14,9 @@ services:
     restart: unless-stopped
     volumes:
       - ./models:/root/.cache/modelscope  # Cache downloaded models
+    networks:
+      - dokploy-network
+
+networks:
+  dokploy-network:
+    external: true
